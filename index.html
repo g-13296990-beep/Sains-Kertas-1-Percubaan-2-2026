@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Percubaan SPM Sains Kertas 1 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070508; --panel:rgba(20,12,14,.88);
+  --red:#e8262b; --red2:#ff5a36; --gold:#ffc22e; --gold2:#ffe39a; --cyan:#6ff3ff;
+  --green:#4dff9e; --bad:#ff4d5e; --text:#f7efe8; --dim:#a79a94;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);
+  font-family:'Rajdhani',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:19px;line-height:1.35}
+body{overflow-x:hidden}
+
+/* ---------- LATAR BELAKANG: grid HUD + percikan api ---------- */
+.scene{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;
+  background:
+   radial-gradient(ellipse at 50% 38%,rgba(111,243,255,.10) 0,rgba(111,243,255,.03) 30%,transparent 55%),
+   radial-gradient(ellipse at 50% 110%,rgba(232,38,43,.28) 0,transparent 55%),
+   linear-gradient(#070508 0%,#0d070a 60%,#170608 100%);}
+#hud{position:absolute;inset:0;width:100%;height:100%}
+.scan{position:fixed;inset:0;z-index:50;pointer-events:none;
+  background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0,rgba(0,0,0,0) 3px,rgba(0,0,0,.12) 4px);mix-blend-mode:multiply}
+.plates{display:flex;gap:6px;height:12px;margin:-4px 0 14px}
+.plates i{display:block;height:100%;transform:skewX(-30deg)}
+
+/* ---------- SUSUN ATUR ---------- */
+#app{position:relative;z-index:2;max-width:900px;margin:0 auto;padding:14px 14px 60px}
+.topbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.brand{display:flex;align-items:center;gap:10px;flex:1 1 280px;min-width:0}
+.brand svg{width:52px;height:52px;flex:0 0 auto;filter:drop-shadow(0 0 8px var(--cyan))}
+.brand h1{margin:0;font:900 clamp(12px,3.1vw,18px)/1.2 'Orbitron',sans-serif;letter-spacing:.07em;color:#fff;
+  text-shadow:0 0 6px var(--red),0 0 18px var(--red)}
+.brand small{display:block;font:500 clamp(10px,2.3vw,12px) 'Orbitron',sans-serif;letter-spacing:.2em;color:var(--gold);text-shadow:0 0 8px var(--gold)}
+.tabs{display:flex;gap:8px}
+.tab{font:700 12px 'Orbitron',sans-serif;letter-spacing:.12em;padding:9px 14px;border-radius:6px;border:2px solid rgba(255,194,46,.4);
+  background:transparent;color:var(--dim);cursor:pointer;text-transform:uppercase;transition:.15s}
+.tab.on{color:var(--gold);border-color:var(--gold);box-shadow:0 0 14px rgba(255,194,46,.55),inset 0 0 12px rgba(255,194,46,.18);text-shadow:0 0 8px var(--gold)}
+.tab:hover{color:#fff}
+.tools{display:flex;gap:8px}
+.icon-btn{width:40px;height:40px;border-radius:50%;border:2px solid rgba(255,90,54,.7);background:transparent;color:var(--red2);font-size:18px;cursor:pointer}
+.icon-btn.off{opacity:.4;filter:grayscale(1)}
+
+.view{display:none}.view.on{display:block;animation:pop .35s ease}
+@keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+.panel{position:relative;background:var(--panel);border:2px solid var(--gold);border-radius:10px;padding:20px;
+  box-shadow:0 0 14px rgba(255,194,46,.4),inset 0 0 28px rgba(232,38,43,.12);backdrop-filter:blur(2px)}
+.panel::before,.panel::after{content:"";position:absolute;width:26px;height:26px;border:4px solid var(--red);pointer-events:none}
+.panel::before{left:-5px;top:-5px;border-right:none;border-bottom:none;border-radius:10px 0 0 0}
+.panel::after{right:-5px;bottom:-5px;border-left:none;border-top:none;border-radius:0 0 10px 0}
+.panel.red{border-color:var(--red);box-shadow:0 0 14px rgba(232,38,43,.55),inset 0 0 28px rgba(232,38,43,.12)}
+.panel.red::before,.panel.red::after{border-color:var(--gold)}
+.glow{color:#fff;text-shadow:0 0 6px var(--red),0 0 16px var(--red),0 0 34px var(--red)}
+.glow-gold{color:#fff;text-shadow:0 0 6px var(--gold),0 0 16px var(--gold),0 0 34px var(--gold)}
+.mono{font-family:'Share Tech Mono',monospace}
+
+/* ---------- BUTANG ---------- */
+.btn{font:700 15px 'Orbitron',sans-serif;letter-spacing:.12em;text-transform:uppercase;padding:13px 22px;border-radius:8px;cursor:pointer;
+  border:2px solid var(--gold);background:rgba(255,194,46,.07);color:var(--gold);
+  box-shadow:0 0 12px rgba(255,194,46,.45),inset 0 0 12px rgba(255,194,46,.14);transition:.15s}
+.btn:hover:not(:disabled){background:var(--gold);color:#120708;box-shadow:0 0 28px var(--gold)}
+.btn:active:not(:disabled){transform:translateY(1px) scale(.99)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn.red{border-color:var(--red);color:#ff8a80;background:rgba(232,38,43,.1);box-shadow:0 0 12px rgba(232,38,43,.55),inset 0 0 12px rgba(232,38,43,.18)}
+.btn.red:hover:not(:disabled){background:var(--red);color:#fff;box-shadow:0 0 28px var(--red)}
+.btn.cyan{border-color:var(--cyan);color:var(--cyan);background:rgba(111,243,255,.06);box-shadow:0 0 12px rgba(111,243,255,.45),inset 0 0 12px rgba(111,243,255,.12)}
+.btn.cyan:hover:not(:disabled){background:var(--cyan);color:#06181a;box-shadow:0 0 28px var(--cyan)}
+.btn.small{padding:9px 14px;font-size:12px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.row.end{justify-content:flex-end}
+.spread{justify-content:space-between}
+
+/* ---------- SKRIN MULA ---------- */
+.hero{text-align:center;padding:10px 0 4px}
+.hero .reactor{width:150px;height:150px;margin:0 auto 6px;filter:drop-shadow(0 0 18px var(--cyan))}
+.hero h2{margin:6px 0 2px;font:900 clamp(22px,6vw,38px)/1.12 'Orbitron',sans-serif;letter-spacing:.05em}
+.hero h3{margin:0 0 14px;font:700 clamp(12px,3.2vw,17px) 'Orbitron',sans-serif;letter-spacing:.26em;color:var(--gold);text-shadow:0 0 10px var(--gold)}
+.hero p{margin:0 auto 16px;max-width:580px;color:var(--gold2)}
+.form{max-width:440px;margin:0 auto;text-align:left}
+label{display:block;margin:12px 0 5px;font:700 12px 'Orbitron',sans-serif;letter-spacing:.2em;color:var(--gold)}
+input[type=text],select{width:100%;font:600 20px 'Rajdhani',sans-serif;color:#fff;background:rgba(0,0,0,.5);border:2px solid rgba(255,194,46,.5);border-radius:8px;
+  padding:11px 14px;outline:none;transition:.15s}
+input[type=text]:focus,select:focus{border-color:var(--cyan);box-shadow:0 0 16px rgba(111,243,255,.55)}
+select option{background:#1a0e10}
+.err{color:var(--bad);min-height:1.3em;margin:8px 0 0;font-weight:600}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:18px 0 0}
+.rule{border:1px dashed rgba(255,194,46,.45);border-radius:8px;padding:8px 10px;text-align:center;font-size:16px;color:var(--gold2)}
+.rule b{display:block;font:700 11px 'Orbitron',sans-serif;letter-spacing:.14em;color:var(--red2);margin-bottom:2px}
+
+/* ---------- HUD & BAR KEMAJUAN ---------- */
+.hud{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.chip{background:rgba(0,0,0,.45);border:2px solid rgba(255,194,46,.4);border-radius:8px;padding:8px 6px;text-align:center}
+.chip span{display:block;font:700 10px 'Orbitron',sans-serif;letter-spacing:.16em;color:var(--dim)}
+.chip b{display:block;font:900 clamp(16px,4.4vw,26px) 'Orbitron',sans-serif;color:var(--gold);text-shadow:0 0 10px var(--gold)}
+.chip.time{border-color:rgba(255,77,94,.6)}
+.chip.time b{letter-spacing:.06em;color:#ff6a62;text-shadow:0 0 10px #ff2a2a,0 0 22px #ff2a2a}
+.chip.score b{color:var(--green);text-shadow:0 0 10px var(--green)}
+.chip.power b{color:var(--cyan);text-shadow:0 0 10px var(--cyan)}
+.bar-wrap{margin-bottom:14px}
+.bar-top{display:flex;justify-content:space-between;font:700 11px 'Orbitron',sans-serif;letter-spacing:.12em;color:var(--dim);margin-bottom:6px}
+.led{display:flex;gap:3px}
+.seg{flex:1;height:14px;border-radius:2px;background:#201417;border:1px solid #3a2a2d;transform:skewX(-20deg)}
+.seg.ok{background:var(--green);border-color:var(--green);box-shadow:0 0 8px var(--green)}
+.seg.bad{background:var(--bad);border-color:var(--bad);box-shadow:0 0 8px var(--bad)}
+.seg.now{background:var(--gold);border-color:var(--gold);box-shadow:0 0 10px var(--gold);animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:.25}}
+
+/* ---------- SOALAN ---------- */
+.qlabel{font:700 12px 'Orbitron',sans-serif;letter-spacing:.22em;color:var(--red2);text-shadow:0 0 8px var(--red);margin-bottom:6px}
+.qtext{font-size:clamp(19px,4.5vw,23px);font-weight:600;white-space:pre-line;margin:0 0 6px}
+.figure{display:none;margin:12px 0;background:#fff;border:2px solid var(--red);border-radius:10px;padding:8px;text-align:center;
+  box-shadow:0 0 16px rgba(232,38,43,.5);cursor:zoom-in;position:relative}
+.figure.on{display:block}
+.figure img{max-width:100%;max-height:380px;object-fit:contain;display:block;margin:0 auto}
+.figure .zoom{position:absolute;right:8px;bottom:6px;font:700 10px 'Orbitron',sans-serif;letter-spacing:.08em;color:#120708;background:var(--gold);padding:2px 7px;border-radius:4px;opacity:.92}
+.figure .miss{color:#a00;font-weight:700;padding:20px}
+.opts{margin:12px 0 4px}
+.opt{display:flex;gap:14px;align-items:flex-start;width:100%;text-align:left;font:600 clamp(18px,4.2vw,21px)/1.3 'Rajdhani',sans-serif;color:var(--text);
+  background:rgba(255,194,46,.05);border:2px solid rgba(255,194,46,.4);border-radius:10px;padding:10px 14px;margin:0 0 10px;cursor:pointer;transition:.15s}
+.opt .key{flex:0 0 38px;height:38px;border-radius:6px;display:grid;place-items:center;font:900 17px 'Orbitron',sans-serif;color:var(--gold);
+  border:2px solid var(--gold);text-shadow:0 0 8px var(--gold);transition:.15s}
+.opt .txt{padding-top:5px;white-space:pre-line}
+.opt:hover:not(:disabled){border-color:var(--cyan);background:rgba(111,243,255,.07)}
+.opt.selected{border-color:var(--cyan);background:rgba(111,243,255,.1);box-shadow:0 0 16px rgba(111,243,255,.55)}
+.opt.selected .key{background:var(--cyan);color:#06181a;border-color:var(--cyan);text-shadow:none}
+.opt.correct{border-color:var(--green);background:rgba(77,255,158,.12);box-shadow:0 0 18px rgba(77,255,158,.6)}
+.opt.correct .key{background:var(--green);color:#06180d;border-color:var(--green);text-shadow:none}
+.opt.wrong{border-color:var(--bad);background:rgba(255,77,94,.12);box-shadow:0 0 18px rgba(255,77,94,.6)}
+.opt.wrong .key{background:var(--bad);color:#190508;border-color:var(--bad);text-shadow:none}
+.opt:disabled{cursor:default}
+.opt:disabled:not(.correct):not(.wrong){opacity:.55}
+.hint{display:none;margin:8px 0;padding:10px 14px;border-left:4px solid var(--gold);background:rgba(255,194,46,.09);border-radius:0 10px 10px 0;color:#fff0b8}
+.hint.on{display:block}
+.feedback{display:none;margin:12px 0 4px;padding:14px 16px;border-radius:10px;border:2px solid}
+.feedback.on{display:block;animation:pop .3s ease}
+.feedback.good{border-color:var(--green);background:rgba(77,255,158,.1);box-shadow:0 0 16px rgba(77,255,158,.45)}
+.feedback.bad{border-color:var(--bad);background:rgba(255,77,94,.1);box-shadow:0 0 16px rgba(255,77,94,.45)}
+.feedback h4{margin:0 0 4px;font:900 16px 'Orbitron',sans-serif;letter-spacing:.1em}
+.feedback.good h4{color:var(--green);text-shadow:0 0 10px var(--green)}
+.feedback.bad h4{color:var(--bad);text-shadow:0 0 10px var(--bad)}
+.feedback .ans{font-weight:700;color:#fff;margin:2px 0 6px;white-space:pre-line}
+.feedback .why{color:#ffe9de}
+.feedback .why b{color:var(--gold)}
+.actions{margin-top:14px}
+
+/* ---------- KEPUTUSAN ---------- */
+.result{text-align:center}
+.ring{position:relative;width:200px;height:200px;margin:6px auto 8px}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:12}
+.ring .bg{stroke:#241619}
+.ring .fg{stroke:var(--gold);stroke-linecap:round;filter:drop-shadow(0 0 8px var(--gold));transition:stroke-dashoffset 1.2s ease}
+.ring .pct{position:absolute;inset:0;display:grid;place-items:center;font:900 40px 'Orbitron',sans-serif;color:#fff;text-shadow:0 0 12px var(--red)}
+.rank-title{font:900 clamp(17px,4.8vw,25px) 'Orbitron',sans-serif;letter-spacing:.08em;margin:4px 0 12px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:14px 0}
+.stat{background:rgba(0,0,0,.45);border:2px solid rgba(255,194,46,.35);border-radius:8px;padding:10px}
+.stat span{display:block;font:700 10px 'Orbitron',sans-serif;letter-spacing:.16em;color:var(--dim)}
+.stat b{display:block;font:700 21px 'Orbitron',sans-serif;color:var(--gold);word-break:break-word}
+.save{min-height:1.6em;margin:6px 0;font-weight:700}
+.save.ok{color:var(--green)}.save.fail{color:var(--bad)}
+.review{margin:12px 0 4px}
+.cells{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;max-width:460px;margin:6px auto 0}
+.cell{font:700 12px 'Orbitron',sans-serif;padding:6px 0;border-radius:4px;border:1px solid}
+.cell.ok{color:var(--green);border-color:var(--green);background:rgba(77,255,158,.1)}
+.cell.bad{color:var(--bad);border-color:var(--bad);background:rgba(255,77,94,.12)}
+
+/* ---------- PAPAN PENDAHULU ---------- */
+.lb-head{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
+.lb-head h2{margin:0;font:900 clamp(17px,4.8vw,25px) 'Orbitron',sans-serif;letter-spacing:.08em}
+.lb-head select{width:auto;font-size:17px;padding:8px 12px}
+.lb{display:grid;gap:8px}
+.lbr{display:grid;grid-template-columns:54px 1fr 84px 104px;gap:10px;align-items:center;padding:9px 12px;border:2px solid rgba(255,194,46,.25);border-radius:8px;background:rgba(0,0,0,.38)}
+.lbr.hd{border:none;background:none;font:700 10px 'Orbitron',sans-serif;letter-spacing:.16em;color:var(--dim);padding-top:0;padding-bottom:0}
+.lbr .rk{font:900 20px 'Orbitron',sans-serif;text-align:center;color:var(--gold)}
+.lbr .nm{font-weight:700;font-size:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lbr .nm small{display:block;font-size:14px;color:var(--dim);font-weight:600}
+.lbr .mk{font:700 18px 'Orbitron',sans-serif;color:var(--green);text-shadow:0 0 8px rgba(77,255,158,.7);text-align:right}
+.lbr .tm{font:400 18px 'Share Tech Mono',monospace;color:#ff9a8f;text-align:right}
+.lbr.r1{border-color:var(--gold);box-shadow:0 0 16px rgba(255,194,46,.55)}.lbr.r1 .rk{text-shadow:0 0 10px var(--gold)}
+.lbr.r2{border-color:#d7dce8;box-shadow:0 0 12px rgba(215,220,232,.4)}
+.lbr.r3{border-color:#ff9a5c;box-shadow:0 0 12px rgba(255,154,92,.4)}
+.lbr.me{outline:2px dashed var(--cyan);outline-offset:2px}
+.empty{text-align:center;color:var(--dim);padding:26px 0}
+.updated{font:400 13px 'Share Tech Mono',monospace;color:var(--dim)}
+
+/* ---------- PENGAKTIFAN ARMOR ---------- */
+#suitup{position:fixed;inset:0;z-index:70;background:rgba(6,3,4,.96);display:none;align-items:center;justify-content:center;padding:16px}
+#suitup.on{display:flex}
+.su-box{width:min(470px,100%);border:2px solid var(--red);border-radius:12px;padding:20px;background:rgba(20,10,12,.94);box-shadow:0 0 28px rgba(232,38,43,.6),inset 0 0 24px rgba(255,194,46,.08)}
+.su-reactor{width:96px;height:96px;margin:0 auto 6px;display:block;filter:drop-shadow(0 0 14px var(--cyan))}
+.su-title{font:900 clamp(15px,4.4vw,20px) 'Orbitron',sans-serif;letter-spacing:.18em;color:var(--gold);text-shadow:0 0 12px var(--gold);text-align:center}
+.su-sub{text-align:center;color:var(--cyan);margin:6px 0 12px;font-weight:700;min-height:1.5em}
+.su-list{list-style:none;margin:0 0 12px;padding:0;font:400 16px 'Share Tech Mono',monospace;min-height:150px}
+.su-list li{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px dashed rgba(255,194,46,.3);animation:pop .25s ease}
+.su-list b{color:var(--green)}
+.su-bar{height:12px;border:1px solid var(--gold);border-radius:4px;overflow:hidden;margin-bottom:14px}
+.su-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--red),var(--gold));transition:width .3s}
+
+/* ---------- LIGHTBOX ---------- */
+#lightbox{position:fixed;inset:0;z-index:60;background:rgba(5,2,3,.93);display:none;align-items:center;justify-content:center;padding:16px;cursor:zoom-out}
+#lightbox.on{display:flex}
+#lightbox img{max-width:100%;max-height:100%;background:#fff;border-radius:8px;border:3px solid var(--red);box-shadow:0 0 30px var(--red)}
+
+/* ---------- ANIMASI REAKTOR ARKA ---------- */
+.pulse{animation:zap 1.6s ease-in-out infinite}
+@keyframes zap{50%{opacity:.4}}
+.orbit{transform-origin:50% 50%;animation:spin 8s linear infinite}
+.orbit.o2{animation-duration:12s;animation-direction:reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media (max-width:560px){
+  body{font-size:18px}
+  .panel{padding:14px}
+  .hud{gap:6px}
+  .lbr{grid-template-columns:40px 1fr 66px 86px;gap:6px;padding:8px}
+  .lbr .nm{font-size:17px}.lbr .mk{font-size:15px}.lbr .tm{font-size:15px}
+  .cells{grid-template-columns:repeat(8,1fr)}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="scene"><canvas id="hud"></canvas></div>
+<div class="scan"></div>
+
+<!-- Simbol reaktor arka (digunakan semula) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="reactor" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="47" fill="#0b0809" stroke="#ffc22e" stroke-width="3"/>
+      <circle cx="50" cy="50" r="41" fill="none" stroke="#e8262b" stroke-width="2"/>
+      <g class="orbit"><circle cx="50" cy="50" r="33" fill="none" stroke="#6ff3ff" stroke-width="9" stroke-dasharray="14 5.7"/></g>
+      <circle cx="50" cy="50" r="25" fill="#06181a" stroke="#6ff3ff" stroke-width="2"/>
+      <path d="M50 30 L66 60 L34 60 Z" fill="none" stroke="#bff9ff" stroke-width="3" stroke-linejoin="round"/>
+      <circle cx="50" cy="50" r="13" fill="#6ff3ff" opacity=".4" class="pulse"/>
+      <circle cx="50" cy="50" r="6" fill="#ffffff"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 100 100" aria-hidden="true"><use href="#reactor"/></svg>
+      <h1>PERCUBAAN SPM<br>SAINS KERTAS 1 2026<small>MISI PENGAKTIFAN ARMOR</small></h1>
+    </div>
+    <nav class="tabs">
+      <button class="tab on" id="tabPlay" type="button">Main</button>
+      <button class="tab" id="tabBoard" type="button">Papan Pendahulu</button>
+    </nav>
+    <div class="tools">
+      <button class="icon-btn" id="sfxBtn" type="button" title="Kesan bunyi hidup/mati" aria-label="Kesan bunyi hidup atau mati" aria-pressed="true">🔊</button>
+      <button class="icon-btn" id="musicBtn" type="button" title="Muzik hidup/mati" aria-label="Muzik hidup atau mati" aria-pressed="true">🎵</button>
+    </div>
+  </header>
+  <div class="plates"><i style="flex:3;background:var(--red)"></i><i style="flex:1;background:var(--gold)"></i><i style="flex:7;background:var(--cyan);opacity:.7"></i><i style="flex:1;background:var(--red)"></i></div>
+
+  <main>
+    <!-- ================= MULA ================= -->
+    <section id="viewStart" class="view on">
+      <div class="panel">
+        <div class="hero">
+          <svg class="reactor" viewBox="0 0 100 100" aria-hidden="true"><use href="#reactor"/></svg>
+          <h2 class="glow">PERCUBAAN SPM<br>SAINS KERTAS 1</h2>
+          <h3>TAHUN 2026</h3>
+          <p>40 soalan objektif. Aktifkan armor anda, kalahkan masa dan panjat papan pendahulu! Setiap jawapan betul berturut-turut menaikkan tahap kuasa reaktor arka anda. Masukkan butiran anda, Pahlawan!</p>
+        </div>
+        <div class="form">
+          <label for="inName">NAMA PEMAIN</label>
+          <input type="text" id="inName" maxlength="30" autocomplete="off" placeholder="cth. Aisyah binti Ahmad">
+          <label for="inClass">KELAS</label>
+          <input type="text" id="inClass" maxlength="20" autocomplete="off" placeholder="cth. 5A 6">
+          <div class="err" id="startErr"></div>
+          <div class="row end" style="margin-top:12px">
+            <button class="btn red" id="btnNext" type="button" disabled>Memuatkan…</button>
+          </div>
+        </div>
+        <div class="rules">
+          <div class="rule"><b>IMBAS</b>Pilih jawapan, kemudian tekan Semak Jawapan</div>
+          <div class="rule"><b>BELAJAR</b>Salah? Lihat jawapan betul dan penerangannya</div>
+          <div class="rule"><b>KEDUDUKAN</b>Markah tertinggi dahulu, kemudian masa paling singkat</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= KUIZ ================= -->
+    <section id="viewQuiz" class="view">
+      <div class="hud">
+        <div class="chip time"><span>MASA</span><b id="hudTime" class="mono">00:00:00</b></div>
+        <div class="chip"><span>SOALAN</span><b id="hudQ">1/40</b></div>
+        <div class="chip score"><span>BETUL</span><b id="hudScore">0</b></div>
+        <div class="chip power"><span>KUASA</span><b id="hudPower">0%</b></div>
+      </div>
+      <div class="bar-wrap">
+        <div class="bar-top"><span id="barLeft">KEMAJUAN MISI</span><span id="barRight">0%</span></div>
+        <div class="led" id="led" role="progressbar" aria-label="Kemajuan soalan" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
+      </div>
+      <div class="panel red">
+        <div class="qlabel" id="qLabel">SOALAN 1</div>
+        <p class="qtext" id="qText"></p>
+        <div class="figure" id="figure"><img id="qImg" alt="Rajah bagi soalan"><span class="zoom">KETIK UNTUK BESARKAN</span></div>
+        <div class="opts" id="opts"></div>
+        <div class="hint" id="hintBox"></div>
+        <div class="feedback" id="feedback"></div>
+        <div class="row spread actions">
+          <button class="btn cyan small" id="btnHint" type="button">💡 Petunjuk</button>
+          <button class="btn" id="btnMain" type="button" disabled>Semak Jawapan</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= KEPUTUSAN ================= -->
+    <section id="viewResult" class="view">
+      <div class="panel result">
+        <div class="qlabel">MISI SELESAI</div>
+        <div class="ring">
+          <svg viewBox="0 0 120 120"><circle class="bg" cx="60" cy="60" r="52"/><circle class="fg" id="ringFg" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7"/></svg>
+          <div class="pct" id="resPct">0%</div>
+        </div>
+        <div class="rank-title glow-gold" id="resTitle"></div>
+        <div class="stats">
+          <div class="stat"><span>NAMA</span><b id="resName"></b></div>
+          <div class="stat"><span>KELAS</span><b id="resClass"></b></div>
+          <div class="stat"><span>MARKAH</span><b id="resMarks"></b></div>
+          <div class="stat"><span>MASA DIAMBIL</span><b id="resTime" class="mono"></b></div>
+          <div class="stat"><span>KEDUDUKAN</span><b id="resRank">…</b></div>
+        </div>
+        <div class="save" id="saveMsg"></div>
+        <div class="review"><div class="qlabel">JAWAPAN ANDA</div><div class="cells" id="cells"></div></div>
+        <div class="row" style="justify-content:center;margin-top:18px">
+          <button class="btn cyan small" id="btnRetry" type="button" style="display:none">Cuba simpan semula</button>
+          <button class="btn red" id="btnToBoard" type="button">Lihat Papan Pendahulu</button>
+          <button class="btn" id="btnAgain" type="button">Main Semula</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAPAN PENDAHULU ================= -->
+    <section id="viewBoard" class="view">
+      <div class="panel">
+        <div class="lb-head">
+          <h2 class="glow">PAPAN PENDAHULU</h2>
+          <div class="row">
+            <select id="classFilter" aria-label="Tapis mengikut kelas"><option value="">Semua kelas</option></select>
+            <button class="btn small" id="btnRefresh" type="button">Muat semula</button>
+          </div>
+        </div>
+        <div class="updated" id="lbUpdated" style="margin-bottom:10px">Disusun mengikut markah tertinggi, kemudian masa paling singkat (percubaan terbaik setiap pemain).</div>
+        <div class="lb" id="lb"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="suitup" role="status" aria-live="polite">
+  <div class="su-box">
+    <svg class="su-reactor" viewBox="0 0 100 100" aria-hidden="true"><use href="#reactor"/></svg>
+    <div class="su-title">PROTOKOL PENGAKTIFAN ARMOR</div>
+    <div class="su-sub" id="suSub">Menghidupkan reaktor arka…</div>
+    <ul class="su-list" id="suList"></ul>
+    <div class="su-bar"><i id="suFill"></i></div>
+    <div class="row" style="justify-content:center"><button class="btn small" id="suSkip" type="button">Langkau</button></div>
+  </div>
+</div>
+
+<div id="lightbox"><img id="lbImg" alt="Rajah dibesarkan"></div>
+
+<script>
+/* ---------- latar belakang: grid HUD + percikan api ---------- */
+(function(){
+  var cv=document.getElementById('hud'); if(!cv||!cv.getContext) return;
+  var ctx=cv.getContext('2d'), W=0,H=0,dpr=Math.min(window.devicePixelRatio||1,2);
+  var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var N=90, sparks=[], power=0.5, target=0.5, lastT=0, ang=0, scanY=0;
+  function size(){W=window.innerWidth;H=window.innerHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}
+  function spawn(s,init){s.x=Math.random()*W;s.y=init?Math.random()*H:H+10;s.vy=20+Math.random()*60;s.r=Math.random()*1.8+.5;s.h=Math.random()<.55?8:42;s.dx=(Math.random()-.5)*14;return s}
+  window.setPower=function(v){target=Math.max(0.25,v)};
+  function draw(dt){
+    power+=(target-power)*Math.min(1,dt*1.6);
+    ctx.clearRect(0,0,W,H);
+    var cx=W/2, cy=H*0.38;
+    // grid titik
+    ctx.fillStyle='rgba(255,194,46,.10)';
+    for(var gx=20;gx<W;gx+=40){for(var gy=20;gy<H;gy+=40){ctx.fillRect(gx,gy,1.5,1.5)}}
+    // gelang reaktor besar yang berputar
+    ang+=dt*(0.15+power*0.25);
+    var R=Math.min(W,H)*0.34;
+    ctx.save(); ctx.translate(cx,cy); ctx.rotate(ang);
+    ctx.strokeStyle='rgba(111,243,255,'+(0.07+power*0.05)+')'; ctx.lineWidth=2; ctx.setLineDash([22,14]);
+    ctx.beginPath(); ctx.arc(0,0,R,0,Math.PI*2); ctx.stroke();
+    ctx.rotate(-ang*2); ctx.strokeStyle='rgba(232,38,43,.12)'; ctx.setLineDash([6,12]);
+    ctx.beginPath(); ctx.arc(0,0,R*0.72,0,Math.PI*2); ctx.stroke();
+    ctx.restore(); ctx.setLineDash([]);
+    // garis imbasan
+    scanY=(scanY+dt*(40+power*60))%H;
+    var g=ctx.createLinearGradient(0,scanY-40,0,scanY+4);
+    g.addColorStop(0,'rgba(111,243,255,0)'); g.addColorStop(1,'rgba(111,243,255,.10)');
+    ctx.fillStyle=g; ctx.fillRect(0,scanY-40,W,44);
+    // percikan api naik
+    for(var i=0;i<N;i++){
+      var s=sparks[i]; s.y-=s.vy*dt*(0.6+power*0.9); s.x+=s.dx*dt;
+      if(s.y<-10){spawn(s,false);continue}
+      var a=Math.max(0,Math.min(1,s.y/H))*.8;
+      ctx.fillStyle='hsla('+s.h+',100%,60%,'+a+')';
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fill();
+    }
+  }
+  function loop(t){var dt=Math.min(.05,(t-lastT)/1000||.016); lastT=t; draw(dt); requestAnimationFrame(loop)}
+  window.addEventListener('resize',size);
+  size();
+  for(var i=0;i<N;i++) sparks.push(spawn({},true));
+  if(reduce){power=0.3;target=0.3;draw(0.016)} else requestAnimationFrame(loop);
+})();
+
+(function () {
+  'use strict';
+
+  /* ================= bantuan ================= */
+  var $ = function (id) { return document.getElementById(id); };
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function fmt(sec) { sec = Math.max(0, Math.floor(sec)); return pad(Math.floor(sec / 3600)) + ':' + pad(Math.floor(sec % 3600 / 60)) + ':' + pad(sec % 60); }
+  function powerOf(streak) { return Math.min(100, streak * 10); }          // 10 betul berturut-turut = 100%
+  function pctText(p) { return (Math.round(p * 10) / 10).toString() + '%'; }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+  function make(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+  /* ================= panggilan pelayan (dengan mod demo) ================= */
+  var DEMO = (typeof google === 'undefined' || !google.script || !google.script.run);
+  var demoBoard = [];
+  var demoQs = [
+    { no: 1, question: 'MOD DEMO: Apakah unit SI bagi daya?', options: [{key:'A',text:'Joule'},{key:'B',text:'Newton'},{key:'C',text:'Watt'},{key:'D',text:'Pascal'}], correct: 'B', hint: 'Dinamakan sempena Isaac Newton.', explanation: 'Daya diukur dalam unit newton (N).', image: '' },
+    { no: 2, question: 'MOD DEMO: Antara berikut, yang manakah pengawet?', options: [{key:'A',text:'Aspartam'},{key:'B',text:'Karmoisin'},{key:'C',text:'Sulfur dioksida'}], correct: 'C', hint: 'Pengawet menghalang pertumbuhan mikroorganisma.', explanation: 'Sulfur dioksida ialah pengawet.', image: '' },
+    { no: 3, question: 'MOD DEMO: Berapakah bilangan neutron bagi atom dengan nombor proton 18 dan nombor nukleon 40?', options: [{key:'A',text:'18'},{key:'B',text:'22'},{key:'C',text:'40'},{key:'D',text:'58'}], correct: 'B', hint: 'Neutron = nombor nukleon − nombor proton.', explanation: '40 − 18 = 22.', image: '' }
+  ];
+ /* ================= panggilan pelayan (diubah untuk GitHub) ================= */
+  var GAS_URL = "https://script.google.com/macros/s/AKfycbxkIjni9Kd3-VlywqDxVOnYHnpnPZPHiqssmIdjhw9WHLlMjw7WKRWU1Le-vdOUcQSI/exec"; // Anda akan dapat URL ini di Langkah 3
+
+  function server(fn, arg) {
+    return new Promise(function (resolve, reject) {
+      if (fn === 'getQuestions' || fn === 'getLeaderboard') {
+        fetch(GAS_URL + "?action=" + fn)
+          .then(function(res) { return res.json(); })
+          .then(resolve)
+          .catch(reject);
+      } else if (fn === 'submitResult') {
+        // Gunakan text/plain untuk mengelakkan isu CORS Preflight
+        fetch(GAS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: fn, data: arg })
+        })
+        .then(function(res) {
+          if (!res.ok) throw new Error("Ralat rangkaian");
+          return res.json();
+        })
+        .then(function(data) {
+          if (data.error) reject(new Error(data.error));
+          else resolve(data);
+        })
+        .catch(reject);
+      }
+    });
+  }
+      setTimeout(function () {
+        if (fn === 'getQuestions') return resolve(demoQs);
+        if (fn === 'getLeaderboard') return resolve(demoBoard.slice());
+        if (fn === 'submitResult') {
+          var c = 0; demoQs.forEach(function (q, i) { if (arg.answers[i] === q.correct) c++; });
+          var p = Math.round(c / demoQs.length * 1000) / 10;
+          demoBoard.push({ name: arg.name, cls: arg.cls, percent: p, time: fmt(arg.seconds), score: c + '/' + demoQs.length, seconds: arg.seconds });
+          demoBoard.sort(function (a, b) { return b.percent - a.percent || a.seconds - b.seconds; });
+          demoBoard.forEach(function (r, i) { r.rank = i + 1; });
+          return resolve({ name: arg.name, cls: arg.cls, percent: p, correct: c, total: demoQs.length, time: fmt(arg.seconds), seconds: arg.seconds, rank: 1, players: demoBoard.length });
+        }
+        reject(new Error('Panggilan tidak dikenali'));
+      }, 350);
+    });
+  }
+
+  var REDUCE = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  /* ================= keadaan ================= */
+  var S = {
+    qs: [], idx: 0, answers: [], results: [], picked: null, checked: false,
+    t0: 0, timer: 0, elapsed: 0, name: '', cls: '', correct: 0, streak: 0,
+    playView: 'start', tab: 'play', sfxOn: true, musicOn: true, inGame: false, starting: false, loaded: false, finalPayload: null, me: null, hintOpen: false
+  };
+
+  /* ================= bunyi: kesan + muzik (dijana terus, tiada fail diperlukan) ================= */
+  var actx = null, master = null, sfxBus = null, musicBus = null, noiseBuf = null;
+  function ac() {
+    if (actx) return actx;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    try {
+      actx = new AC();
+      var comp = actx.createDynamicsCompressor();
+      master = actx.createGain(); master.gain.value = 0.9;
+      master.connect(comp); comp.connect(actx.destination);
+      sfxBus = actx.createGain(); sfxBus.connect(master);
+      var lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2600; lp.connect(master);
+      musicBus = actx.createGain(); musicBus.gain.value = 0.0001; musicBus.connect(lp);
+    } catch (e) { actx = null; }
+    return actx;
+  }
+  function resumeAudio() { var a = ac(); if (a && a.state === 'suspended') { try { a.resume(); } catch (e) {} } }
+  function toneAt(t, freq, dur, type, vol, bus, slideTo) {
+    var a = ac(); if (!a) return;
+    var o = a.createOscillator(), g = a.createGain();
+    o.type = type || 'square'; o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol || 0.05, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(bus || sfxBus); o.start(t); o.stop(t + dur + 0.03);
+  }
+  function noiseAt(t, dur, vol, ftype, fq, bus) {
+    var a = ac(); if (!a) return;
+    if (!noiseBuf) {
+      noiseBuf = a.createBuffer(1, a.sampleRate, a.sampleRate);
+      var d = noiseBuf.getChannelData(0); for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    var s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+    s.buffer = noiseBuf; f.type = ftype || 'bandpass'; f.frequency.value = fq || 1200;
+    g.gain.setValueAtTime(vol || 0.05, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(f); f.connect(g); g.connect(bus || sfxBus); s.start(t); s.stop(t + dur + 0.02);
+  }
+  function sfx(kind) {
+    if (!S.sfxOn) return;
+    var a = ac(); if (!a) return;
+    var t = a.currentTime + 0.01;
+    switch (kind) {
+      case 'click':  toneAt(t, 1500, .05, 'sine', .04); toneAt(t + .06, 2100, .07, 'sine', .035); break;                          // bip HUD
+      case 'select': toneAt(t, 180, .09, 'sawtooth', .03, null, 360); toneAt(t + .07, 900, .06, 'sine', .03, null, 1600); break; // servo + bip
+      case 'hint':   toneAt(t, 300, .5, 'sine', .05, null, 1700); toneAt(t + .05, 305, .5, 'triangle', .02, null, 1710); break;  // imbasan
+      case 'clank':  toneAt(t, 220, .08, 'square', .03, null, 110); noiseAt(t, .06, .05, 'bandpass', 3200);                      // kunci logam
+                     toneAt(t + .09, 1320, .09, 'sine', .035); break;
+      case 'ok':     toneAt(t, 200, .12, 'sawtooth', .04, null, 1800);                                                           // das repulsor + loceng
+                     [880, 1319, 1760].forEach(function (f, i) { toneAt(t + .1 + i * .08, f, .3, 'sine', .055); }); break;
+      case 'bad':    toneAt(t, 140, .3, 'sawtooth', .06, null, 70); toneAt(t + .2, 90, .4, 'square', .045); noiseAt(t, .3, .05, 'lowpass', 500); break;
+      case 'streak': [1319, 1568, 2093, 2637].forEach(function (f, i) { toneAt(t + .4 + i * .06, f, .14, 'sine', .035); }); break;
+      case 'suit':   // pengecasan repulsor, bunyi servo, kemudian letupan kuasa
+        toneAt(t, 70, 1.3, 'sawtooth', .055, null, 1500); toneAt(t + .05, 110, 1.2, 'sine', .08, null, 2400);
+        [0.15, 0.4, 0.65, 0.9].forEach(function (d) { toneAt(t + d, 160, .1, 'sawtooth', .035, null, 380); noiseAt(t + d, .07, .04, 'bandpass', 2500); });
+        noiseAt(t + .4, 1.0, .06, 'bandpass', 1800);
+        toneAt(t + 1.2, 75, .6, 'sine', .22, null, 35); noiseAt(t + 1.2, .5, .08, 'lowpass', 700);
+        [660, 990, 1320].forEach(function (f, i) { toneAt(t + 1.25 + i * .07, f, .5, 'triangle', .04); });
+        break;
+      case 'win':
+        [392, 523, 659, 784].forEach(function (f, i) { toneAt(t + i * .14, f, .25, 'sawtooth', .035); });
+        [523, 659, 784, 1047].forEach(function (f) { toneAt(t + .65, f, 1.4, 'triangle', .05); });
+        noiseAt(t + .65, .6, .04, 'highpass', 4500);
+        break;
+    }
+  }
+
+  /* Muzik latar: rentak bersemangat bertempo 108 bpm, kord Em - C - G - D */
+  var MUSIC = { on: false, step: 0, next: 0, timer: 0 };
+  var BARS = [
+    { root: 82.41,  arp: [329.63, 392.00, 493.88, 392.00], pad: [164.81, 246.94, 329.63] },   // Em
+    { root: 65.41,  arp: [261.63, 329.63, 392.00, 329.63], pad: [130.81, 196.00, 261.63] },   // C
+    { root: 98.00,  arp: [196.00, 246.94, 293.66, 246.94], pad: [196.00, 246.94, 293.66] },   // G
+    { root: 73.42,  arp: [293.66, 369.99, 440.00, 369.99], pad: [146.83, 220.00, 293.66] }    // D
+  ];
+  var STEP_SEC = 60 / 108 / 4;
+  function padAt(t, freq, dur, vol, bus) {
+    var a = ac(); if (!a) return;
+    var o = a.createOscillator(), g = a.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(vol, t + dur * 0.3);
+    g.gain.linearRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(bus || sfxBus); o.start(t); o.stop(t + dur + 0.05);
+  }
+  function scheduleStep(st, t) {
+    var bar = BARS[Math.floor(st / 16) % 4], s = st % 16, mb = musicBus, barSec = STEP_SEC * 16;
+    if (s === 0) bar.pad.forEach(function (f, i) { padAt(t + i * .03, f, barSec * 1.1, .02, mb); });
+    if (s % 4 === 0) toneAt(t, 110, .16, 'sine', .16, mb, 42);                                    // dentum seperti degupan reaktor
+    if (s === 4 || s === 12) noiseAt(t, .12, .035, 'bandpass', 1800, mb);                         // snar lembut
+    if (s % 2 === 0) noiseAt(t, .03, s % 4 === 2 ? .02 : .01, 'highpass', 7000, mb);              // hi-hat
+    if (s === 0 || s === 3 || s === 6 || s === 8 || s === 11 || s === 14) {                       // garis bes bersinkopasi
+      toneAt(t, bar.root, STEP_SEC * 2.2, 'sawtooth', .05, mb);
+      toneAt(t, bar.root * 2, STEP_SEC * 2.2, 'square', .012, mb);
+    }
+    if (s % 2 === 0) toneAt(t, bar.arp[(s >> 1) % 4], STEP_SEC * 1.6, 'triangle', .028, mb);      // arpeggio
+    if (s === 15 && (Math.floor(st / 16) % 4) === 3) toneAt(t, 2400, .08, 'sine', .01, mb, 3200); // bip konsol
+  }
+  function musicTick() {
+    var a = ac(); if (!a || !MUSIC.on) return;
+    while (MUSIC.next < a.currentTime + 0.3) {
+      scheduleStep(MUSIC.step, MUSIC.next);
+      MUSIC.next += STEP_SEC; MUSIC.step = (MUSIC.step + 1) % 64;
+    }
+  }
+  function musicStart() {
+    if (!S.musicOn || MUSIC.on) return;
+    var a = ac(); if (!a) return;
+    resumeAudio();
+    MUSIC.on = true; MUSIC.step = 0; MUSIC.next = a.currentTime + 0.08;
+    clearInterval(MUSIC.timer); MUSIC.timer = setInterval(musicTick, 60);
+    var t = a.currentTime;
+    musicBus.gain.cancelScheduledValues(t); musicBus.gain.setValueAtTime(0.0001, t); musicBus.gain.linearRampToValueAtTime(0.5, t + 1.2);
+  }
+  function musicStop() {
+    MUSIC.on = false; clearInterval(MUSIC.timer);
+    if (actx && musicBus) {
+      var t = actx.currentTime;
+      musicBus.gain.cancelScheduledValues(t); musicBus.gain.setValueAtTime(Math.max(musicBus.gain.value, 0.0001), t);
+      musicBus.gain.linearRampToValueAtTime(0.0001, t + 0.35);
+    }
+  }
+  function syncMusic() { if (S.inGame && S.musicOn && !document.hidden) musicStart(); else musicStop(); }
+
+  /* ================= navigasi ================= */
+  function showPlayView(v) {
+    S.playView = v;
+    ['Start', 'Quiz', 'Result'].forEach(function (n) { $('view' + n).classList.toggle('on', S.tab === 'play' && v === n.toLowerCase()); });
+  }
+  function showTab(t) {
+    S.tab = t;
+    $('tabPlay').classList.toggle('on', t === 'play');
+    $('tabBoard').classList.toggle('on', t === 'board');
+    $('viewBoard').classList.toggle('on', t === 'board');
+    showPlayView(S.playView);
+    if (t === 'board') loadBoard();
+    window.scrollTo(0, 0);
+  }
+
+  /* ================= memuatkan soalan ================= */
+  function loadQuestions() {
+    var b = $('btnNext'); b.disabled = true; b.textContent = 'Memuatkan…'; $('startErr').textContent = '';
+    server('getQuestions').then(function (qs) {
+      if (!qs || !qs.length) throw new Error('Tiada soalan ditemui. Sila minta guru menyemak tab Questions.');
+      S.qs = qs; S.loaded = true; b.disabled = false; b.textContent = 'Seterusnya ▶';
+      if (DEMO) $('startErr').textContent = 'Mod pratonton: halaman ini belum disambungkan ke Google Sheets.';
+    }).catch(function (e) {
+      $('startErr').textContent = 'Soalan tidak dapat dimuatkan: ' + (e && e.message ? e.message : e);
+      b.textContent = 'Cuba lagi'; b.disabled = false; S.loaded = false;
+    });
+  }
+
+  /* ================= mula ================= */
+  function onNext() {
+    if (!S.loaded) { loadQuestions(); return; }
+    var name = $('inName').value.replace(/\s+/g, ' ').trim();
+    var cls = $('inClass').value.replace(/\s+/g, ' ').trim();
+    if (name.length < 2) { $('startErr').textContent = 'Sila masukkan nama anda (sekurang-kurangnya 2 aksara).'; $('inName').focus(); return; }
+    if (!cls) { $('startErr').textContent = 'Sila masukkan kelas anda.'; $('inClass').focus(); return; }
+    $('startErr').textContent = '';
+    S.name = name; S.cls = cls; S.me = { name: name.toLowerCase(), cls: cls.toLowerCase() };
+    if (S.starting) return;
+    S.starting = true; $('btnNext').disabled = true;
+    resumeAudio(); sfx('click');
+    suitUp(function () { S.starting = false; $('btnNext').disabled = false; startQuiz(); });
+  }
+
+  var SUIT_STEPS = ['Reaktor arka', 'Penggalak tapak kaki', 'Gauntlet repulsor', 'Paparan HUD topi keledar', 'Pelindung dada & sendi', 'Pengimbas soalan'];
+  function suitUp(done) {
+    var ov = $('suitup'), list = $('suList'), fill = $('suFill'), skip = $('suSkip'), sub = $('suSub');
+    clear(list); fill.style.width = '0%'; sub.textContent = 'Menghidupkan reaktor arka…'; ov.classList.add('on');
+    var i = 0, finished = false, timers = [];
+    function end() {
+      if (finished) return; finished = true;
+      timers.forEach(clearTimeout); ov.classList.remove('on'); done();
+    }
+    function step() {
+      if (finished) return;
+      if (i < SUIT_STEPS.length) {
+        var li = make('li'); li.appendChild(make('span', null, SUIT_STEPS[i])); li.appendChild(make('b', null, 'DALAM TALIAN'));
+        list.appendChild(li); i++;
+        fill.style.width = Math.round(i / SUIT_STEPS.length * 100) + '%';
+        sfx('clank'); timers.push(setTimeout(step, REDUCE ? 120 : 420));
+      } else {
+        sub.textContent = 'ARMOR DIAKTIFKAN. SELAMAT BERJUANG, ' + S.name.toUpperCase() + '!';
+        sfx('suit'); if (window.setPower) window.setPower(2); timers.push(setTimeout(end, REDUCE ? 300 : 1500));
+      }
+    }
+    skip.onclick = end;
+    step();
+  }
+
+  function startQuiz() {
+    S.idx = 0; S.answers = []; S.results = []; S.correct = 0; S.streak = 0; S.elapsed = 0; S.finalPayload = null;
+    S.inGame = true; syncMusic();
+    buildLed();
+    if (window.setPower) window.setPower(0.5);
+    S.t0 = Date.now();
+    clearInterval(S.timer);
+    S.timer = setInterval(tick, 250);
+    tick();
+    showPlayView('quiz');
+    renderQuestion();
+    window.scrollTo(0, 0);
+  }
+
+  function tick() {
+    S.elapsed = Math.floor((Date.now() - S.t0) / 1000);
+    $('hudTime').textContent = fmt(S.elapsed);
+  }
+
+  /* ================= bar kemajuan LED ================= */
+  function buildLed() {
+    var led = $('led'); clear(led);
+    for (var i = 0; i < S.qs.length; i++) led.appendChild(make('div', 'seg'));
+  }
+  function updateLed() {
+    var segs = $('led').children, total = S.qs.length;
+    for (var i = 0; i < segs.length; i++) {
+      var c = 'seg';
+      if (S.results[i] === true) c += ' ok';
+      else if (S.results[i] === false) c += ' bad';
+      else if (i === S.idx) c += ' now';
+      segs[i].className = c;
+    }
+    var done = S.results.filter(function (r) { return r !== undefined; }).length;
+    var pct = Math.round(done / total * 100);
+    $('barLeft').textContent = 'SOALAN ' + (S.idx + 1) + ' DARIPADA ' + total;
+    $('barRight').textContent = pct + '% SIAP';
+    $('led').setAttribute('aria-valuenow', pct);
+    $('hudQ').textContent = (S.idx + 1) + '/' + total;
+    $('hudScore').textContent = S.correct;
+    var pw = powerOf(S.streak); $('hudPower').textContent = pw + '%';
+    if (window.setPower && S.inGame) window.setPower(0.4 + pw / 100 * 1.6);
+  }
+
+  /* ================= paparkan soalan ================= */
+  function renderQuestion() {
+    var q = S.qs[S.idx];
+    S.picked = null; S.checked = false; S.hintOpen = false;
+    $('qLabel').textContent = 'SOALAN ' + (S.idx + 1);
+    $('qText').textContent = q.question;
+
+    var fig = $('figure'), img = $('qImg');
+    fig.classList.remove('on');
+    var old = fig.querySelector('.miss'); if (old) old.remove();
+    if (q.image) {
+      img.style.display = '';
+      img.onload = function () { fig.classList.add('on'); };
+      img.onerror = function () {
+        img.style.display = 'none';
+        var m = make('div', 'miss', 'Rajah tidak dapat dimuatkan. Sila minta guru menyemak pautan gambar.');
+        fig.insertBefore(m, fig.firstChild); fig.classList.add('on');
+      };
+      img.src = q.image;
+    } else { img.removeAttribute('src'); }
+
+    var box = $('opts'); clear(box);
+    q.options.forEach(function (o) {
+      var b = make('button', 'opt'); b.type = 'button'; b.dataset.key = o.key;
+      b.appendChild(make('span', 'key', o.key));
+      b.appendChild(make('span', 'txt', o.text));
+      b.addEventListener('click', function () { pick(o.key); });
+      box.appendChild(b);
+    });
+
+    var hb = $('hintBox'); hb.classList.remove('on'); hb.textContent = q.hint ? '💡 ' + q.hint : '💡 Tiada petunjuk untuk soalan ini.';
+    var fb = $('feedback'); fb.className = 'feedback'; clear(fb);
+    $('btnHint').disabled = false;
+    var m = $('btnMain'); m.textContent = 'Semak Jawapan'; m.disabled = true;
+    updateLed();
+
+    // muat turun awal rajah soalan seterusnya
+    var nx = S.qs[S.idx + 1]; if (nx && nx.image) { var pre = new Image(); pre.src = nx.image; }
+  }
+
+  function pick(key) {
+    if (S.checked) return;
+    S.picked = key; sfx('select');
+    Array.prototype.forEach.call($('opts').children, function (b) { b.classList.toggle('selected', b.dataset.key === key); });
+    $('btnMain').disabled = false;
+  }
+
+  function toggleHint() {
+    if (S.checked) return;
+    S.hintOpen = !S.hintOpen;
+    $('hintBox').classList.toggle('on', S.hintOpen);
+    sfx('hint');
+  }
+
+  /* ================= semak / seterusnya ================= */
+  function onMain() {
+    if (!S.checked) checkAnswer();
+    else if (S.idx < S.qs.length - 1) { S.idx++; renderQuestion(); window.scrollTo(0, 0); }
+    else finish();
+  }
+
+  function optText(q, key) {
+    for (var i = 0; i < q.options.length; i++) if (q.options[i].key === key) return q.options[i].text;
+    return '';
+  }
+
+  function checkAnswer() {
+    if (!S.picked) return;
+    var q = S.qs[S.idx], ok = (S.picked === q.correct);
+    S.checked = true; S.answers[S.idx] = S.picked; S.results[S.idx] = ok;
+    if (ok) { S.correct++; S.streak++; } else { S.streak = 0; }
+
+    Array.prototype.forEach.call($('opts').children, function (b) {
+      b.disabled = true; b.classList.remove('selected');
+      if (b.dataset.key === q.correct) b.classList.add('correct');
+      else if (b.dataset.key === S.picked) b.classList.add('wrong');
+    });
+
+    var fb = $('feedback'); clear(fb);
+    fb.className = 'feedback on ' + (ok ? 'good' : 'bad');
+    if (ok) {
+      var msg = S.streak >= 3 ? 'BETUL!  ⚡ KUASA ' + powerOf(S.streak) + '% (' + S.streak + ' BERTURUT-TURUT)' : 'BETUL! SISTEM BERFUNGSI';
+      fb.appendChild(make('h4', null, msg));
+    } else {
+      fb.appendChild(make('h4', null, 'TIDAK TEPAT… KALIBRASI SEMULA'));
+      fb.appendChild(make('div', 'ans', 'Jawapan betul: ' + q.correct + '. ' + optText(q, q.correct)));
+    }
+    if (q.explanation) {
+      var why = make('div', 'why'); why.appendChild(make('b', null, 'Penerangan: ')); why.appendChild(document.createTextNode(q.explanation));
+      fb.appendChild(why);
+    }
+
+    $('hintBox').classList.remove('on'); $('btnHint').disabled = true;
+    var last = S.idx === S.qs.length - 1;
+    var m = $('btnMain'); m.textContent = last ? 'Tamat 🏁' : 'Seterusnya ▶'; m.disabled = false;
+    updateLed(); sfx(ok ? 'ok' : 'bad'); if (ok && S.streak >= 3) sfx('streak');
+    setTimeout(function () { fb.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 60);
+  }
+
+  /* ================= tamat ================= */
+  function finish() {
+    clearInterval(S.timer); tick();
+    var total = S.qs.length;
+    var percent = Math.round(S.correct / total * 1000) / 10;
+    S.finalPayload = { name: S.name, cls: S.cls, answers: S.answers.slice(), seconds: S.elapsed };
+
+    $('resName').textContent = S.name;
+    $('resClass').textContent = S.cls;
+    $('resMarks').textContent = pctText(percent) + '  (' + S.correct + '/' + total + ')';
+    $('resTime').textContent = fmt(S.elapsed);
+    $('resRank').textContent = '…';
+    $('resPct').textContent = pctText(percent);
+    $('resTitle').textContent = titleFor(percent);
+
+    var c = 2 * Math.PI * 52;
+    var fg = $('ringFg'); fg.style.strokeDasharray = c; fg.style.strokeDashoffset = c;
+    setTimeout(function () { fg.style.strokeDashoffset = c * (1 - percent / 100); }, 80);
+
+    var cells = $('cells'); clear(cells);
+    S.results.forEach(function (r, i) { cells.appendChild(make('div', 'cell ' + (r ? 'ok' : 'bad'), String(i + 1))); });
+
+    S.inGame = false; syncMusic(); if (window.setPower) window.setPower(0.6);
+    showPlayView('result'); window.scrollTo(0, 0); sfx('win');
+    submitScore();
+  }
+
+  function titleFor(p) {
+    if (p >= 90) return 'JURUTERA ARMOR TERTINGGI';
+    if (p >= 75) return 'KOMANDER ARMOR';
+    if (p >= 50) return 'PAHLAWAN ARMOR';
+    return 'CAS SEMULA REAKTOR ARKA!';
+  }
+
+  function submitScore() {
+    var msg = $('saveMsg'); msg.className = 'save'; msg.textContent = 'Menyimpan skor anda…';
+    $('btnRetry').style.display = 'none';
+    server('submitResult', S.finalPayload).then(function (r) {
+      msg.className = 'save ok'; msg.textContent = '✔ Skor berjaya disimpan!';
+      $('resMarks').textContent = pctText(r.percent) + '  (' + r.correct + '/' + r.total + ')';
+      $('resPct').textContent = pctText(r.percent);
+      $('resTime').textContent = r.time;
+      $('resRank').textContent = r.rank ? '#' + r.rank + ' daripada ' + r.players : '—';
+      var fg = $('ringFg'), c = 2 * Math.PI * 52; fg.style.strokeDashoffset = c * (1 - r.percent / 100);
+    }).catch(function (e) {
+      msg.className = 'save fail'; msg.textContent = 'Skor tidak dapat disimpan: ' + (e && e.message ? e.message : e);
+      $('btnRetry').style.display = '';
+    });
+  }
+
+  /* ================= papan pendahulu ================= */
+  var boardData = [];
+  function loadBoard() {
+    var lb = $('lb'); clear(lb); lb.appendChild(make('div', 'empty', 'Mengimbas papan pendahulu…'));
+    server('getLeaderboard').then(function (rows) {
+      boardData = rows || [];
+      fillClassFilter(); renderBoard();
+      $('lbUpdated').textContent = 'Disusun mengikut markah tertinggi, kemudian masa paling singkat (percubaan terbaik setiap pemain). Dikemas kini ' + new Date().toLocaleTimeString('ms-MY');
+    }).catch(function (e) {
+      clear(lb); lb.appendChild(make('div', 'empty', 'Papan pendahulu tidak dapat dimuatkan: ' + (e && e.message ? e.message : e)));
+    });
+  }
+
+  function fillClassFilter() {
+    var sel = $('classFilter'), keep = sel.value, seen = {}, list = [];
+    boardData.forEach(function (r) { if (r.cls && !seen[r.cls]) { seen[r.cls] = 1; list.push(r.cls); } });
+    list.sort();
+    clear(sel);
+    var all = make('option', null, 'Semua kelas'); all.value = ''; sel.appendChild(all);
+    list.forEach(function (c) { var o = make('option', null, c); o.value = c; sel.appendChild(o); });
+    sel.value = list.indexOf(keep) >= 0 ? keep : '';
+  }
+
+  function renderBoard() {
+    var lb = $('lb'); clear(lb);
+    var f = $('classFilter').value;
+    var rows = boardData.filter(function (r) { return !f || r.cls === f; });
+    if (!rows.length) { lb.appendChild(make('div', 'empty', 'Belum ada skor. Jadilah yang pertama di papan pendahulu!')); return; }
+    var hd = make('div', 'lbr hd');
+    ['KEDUDUKAN', 'PEMAIN', 'MARKAH', 'MASA'].forEach(function (t, i) { var s = make('span', null, t); if (i > 1) s.style.textAlign = 'right'; if (i === 0) s.style.textAlign = 'center'; hd.appendChild(s); });
+    lb.appendChild(hd);
+    rows.forEach(function (r, i) {
+      var shownRank = f ? i + 1 : r.rank;
+      var cls = 'lbr' + (shownRank <= 3 ? ' r' + shownRank : '');
+      if (S.me && r.name.toLowerCase() === S.me.name && r.cls.toLowerCase() === S.me.cls) cls += ' me';
+      var row = make('div', cls);
+      row.appendChild(make('div', 'rk', shownRank === 1 ? '🥇' : shownRank === 2 ? '🥈' : shownRank === 3 ? '🥉' : String(shownRank)));
+      var nm = make('div', 'nm', r.name); nm.appendChild(make('small', null, r.cls + (r.score ? '  •  ' + r.score : '')));
+      row.appendChild(nm);
+      row.appendChild(make('div', 'mk', pctText(r.percent)));
+      row.appendChild(make('div', 'tm', r.time));
+      lb.appendChild(row);
+    });
+  }
+
+  /* ================= acara ================= */
+  function init() {
+    $('tabPlay').addEventListener('click', function () { showTab('play'); });
+    $('tabBoard').addEventListener('click', function () { showTab('board'); });
+    $('btnNext').addEventListener('click', onNext);
+    $('btnMain').addEventListener('click', onMain);
+    $('btnHint').addEventListener('click', toggleHint);
+    $('btnRetry').addEventListener('click', submitScore);
+    $('btnToBoard').addEventListener('click', function () { showTab('board'); });
+    $('btnAgain').addEventListener('click', function () { S.playView = 'start'; showTab('play'); });
+    $('btnRefresh').addEventListener('click', loadBoard);
+    $('classFilter').addEventListener('change', renderBoard);
+    $('sfxBtn').addEventListener('click', function () {
+      S.sfxOn = !S.sfxOn; this.textContent = S.sfxOn ? '🔊' : '🔇';
+      this.classList.toggle('off', !S.sfxOn); this.setAttribute('aria-pressed', String(S.sfxOn));
+      if (S.sfxOn) { resumeAudio(); sfx('click'); }
+    });
+    $('musicBtn').addEventListener('click', function () {
+      S.musicOn = !S.musicOn; this.classList.toggle('off', !S.musicOn); this.setAttribute('aria-pressed', String(S.musicOn));
+      resumeAudio(); syncMusic();
+    });
+    document.addEventListener('visibilitychange', syncMusic);
+    ['inName', 'inClass'].forEach(function (id) {
+      $(id).addEventListener('keydown', function (e) { if (e.key === 'Enter') onNext(); });
+    });
+    $('figure').addEventListener('click', function () {
+      var im = $('qImg'); var src = im.src; if (!src || im.style.display === 'none') return;
+      $('lbImg').src = src; $('lightbox').classList.add('on');
+    });
+    $('lightbox').addEventListener('click', function () { $('lightbox').classList.remove('on'); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') $('lightbox').classList.remove('on');
+      if (S.tab !== 'play' || S.playView !== 'quiz') return;
+      var tag = (e.target && e.target.tagName) || '';
+      if (tag === 'INPUT' || tag === 'SELECT') return;
+      var k = e.key.toUpperCase();
+      if ('ABCD'.indexOf(k) >= 0 && k.length === 1) {
+        var q = S.qs[S.idx];
+        if (q && q.options.some(function (o) { return o.key === k; })) pick(k);
+      } else if (e.key === 'Enter') {
+        if (tag === 'BUTTON' && e.target.classList.contains('opt')) {
+          if (S.picked === e.target.dataset.key) { e.preventDefault(); if (!$('btnMain').disabled) onMain(); }
+          return;
+        }
+        if (tag === 'BUTTON') return;
+        if (!$('btnMain').disabled) onMain();
+      }
+    });
+    loadQuestions();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
