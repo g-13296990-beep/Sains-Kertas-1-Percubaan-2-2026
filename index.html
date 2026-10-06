@@ -429,43 +429,66 @@ select option{background:#1a0e10}
   function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
   function make(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 
-  /* ================= panggilan pelayan (dengan mod demo) ================= */
-  var DEMO = (typeof google === 'undefined' || !google.script || !google.script.run);
+  /* ================= panggilan API Google Apps Script ================= */
+  /*
+   * GitHub Pages hanya menyediakan hosting statik. URL di bawah ialah
+   * URL Web App Google Apps Script anda dan mesti berakhir dengan /exec.
+   * Contoh:
+   * https://script.google.com/macros/s/AKfycbxxxxxxxxxxxxxxxx/exec
+   */
+  var API_URL = 'https://script.google.com/macros/s/AKfycbxkIjni9Kd3-VlywqDxVOnYHnpnPZPHiqssmIdjhw9WHLlMjw7WKRWU1Le-vdOUcQSI/exec';
+  var DEMO = !API_URL || API_URL.indexOf('PASTE_URL_WEB_APP') === 0;
+
   var demoBoard = [];
   var demoQs = [
     { no: 1, question: 'MOD DEMO: Apakah unit SI bagi daya?', options: [{key:'A',text:'Joule'},{key:'B',text:'Newton'},{key:'C',text:'Watt'},{key:'D',text:'Pascal'}], correct: 'B', hint: 'Dinamakan sempena Isaac Newton.', explanation: 'Daya diukur dalam unit newton (N).', image: '' },
     { no: 2, question: 'MOD DEMO: Antara berikut, yang manakah pengawet?', options: [{key:'A',text:'Aspartam'},{key:'B',text:'Karmoisin'},{key:'C',text:'Sulfur dioksida'}], correct: 'C', hint: 'Pengawet menghalang pertumbuhan mikroorganisma.', explanation: 'Sulfur dioksida ialah pengawet.', image: '' },
     { no: 3, question: 'MOD DEMO: Berapakah bilangan neutron bagi atom dengan nombor proton 18 dan nombor nukleon 40?', options: [{key:'A',text:'18'},{key:'B',text:'22'},{key:'C',text:'40'},{key:'D',text:'58'}], correct: 'B', hint: 'Neutron = nombor nukleon − nombor proton.', explanation: '40 − 18 = 22.', image: '' }
   ];
- /* ================= panggilan pelayan (diubah untuk GitHub) ================= */
-  var GAS_URL = "https://script.google.com/macros/s/AKfycbxkIjni9Kd3-VlywqDxVOnYHnpnPZPHiqssmIdjhw9WHLlMjw7WKRWU1Le-vdOUcQSI/exec"; // Anda akan dapat URL ini di Langkah 3
+
+  function parseApiResponse(resp) {
+    return resp.text().then(function (text) {
+      var data;
+      try { data = JSON.parse(text); }
+      catch (e) { throw new Error('Respons API bukan JSON yang sah.'); }
+      if (!data || data.ok !== true) throw new Error((data && data.error) || 'API mengembalikan ralat.');
+      return data.data;
+    });
+  }
 
   function server(fn, arg) {
     return new Promise(function (resolve, reject) {
-      if (fn === 'getQuestions' || fn === 'getLeaderboard') {
-        fetch(GAS_URL + "?action=" + fn)
-          .then(function(res) { return res.json(); })
-          .then(resolve)
-          .catch(reject);
-      } else if (fn === 'submitResult') {
-        // Gunakan text/plain untuk mengelakkan isu CORS Preflight
-        fetch(GAS_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: fn, data: arg })
-        })
-        .then(function(res) {
-          if (!res.ok) throw new Error("Ralat rangkaian");
-          return res.json();
-        })
-        .then(function(data) {
-          if (data.error) reject(new Error(data.error));
-          else resolve(data);
-        })
-        .catch(reject);
+      if (!DEMO) {
+        var request;
+
+        if (fn === 'submitResult') {
+          var form = new URLSearchParams();
+          form.set('action', fn);
+          form.set('payload', JSON.stringify(arg || {}));
+          request = fetch(API_URL, {
+            method: 'POST',
+            mode: 'cors',
+            cache: 'no-store',
+            body: form
+          });
+        } else {
+          var url = API_URL + (API_URL.indexOf('?') >= 0 ? '&' : '?') +
+            'action=' + encodeURIComponent(fn) + '&_=' + Date.now();
+          request = fetch(url, {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-store'
+          });
+        }
+
+        request.then(function (resp) {
+          if (!resp.ok) throw new Error('HTTP ' + resp.status + ' daripada API.');
+          return parseApiResponse(resp);
+        }).then(resolve).catch(reject);
+        return;
       }
-    });
-  }
+
+      // Mod pratonton tempatan kekal tersedia jika API belum diisi.
       setTimeout(function () {
         if (fn === 'getQuestions') return resolve(demoQs);
         if (fn === 'getLeaderboard') return resolve(demoBoard.slice());
@@ -637,7 +660,7 @@ select option{background:#1a0e10}
     server('getQuestions').then(function (qs) {
       if (!qs || !qs.length) throw new Error('Tiada soalan ditemui. Sila minta guru menyemak tab Questions.');
       S.qs = qs; S.loaded = true; b.disabled = false; b.textContent = 'Seterusnya ▶';
-      if (DEMO) $('startErr').textContent = 'Mod pratonton: halaman ini belum disambungkan ke Google Sheets.';
+      if (DEMO) $('startErr').textContent = 'Mod pratonton: masukkan URL Web App Google Apps Script dalam kod index.html untuk mengaktifkan Google Sheets.';
     }).catch(function (e) {
       $('startErr').textContent = 'Soalan tidak dapat dimuatkan: ' + (e && e.message ? e.message : e);
       b.textContent = 'Cuba lagi'; b.disabled = false; S.loaded = false;
